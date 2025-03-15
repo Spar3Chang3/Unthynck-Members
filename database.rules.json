@@ -1,0 +1,17 @@
+{
+  /* Visit https://firebase.google.com/docs/database/security to learn more about security rules. */
+  "rules": {
+    "public": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "private": {
+      ".read": false,
+      ".write": false
+    },
+    "contact": {
+      ".read": false,
+      ".write": true
+    }
+  }
+}

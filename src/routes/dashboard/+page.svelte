@@ -1,4 +1,9 @@
 <script>
+    import { onMount } from 'svelte';
+    import { initApp } from '$lib/firebase.js';
+    import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+    import { getAuthStore } from '$lib/authStore.js';
+
     let activeTab = $state('landing');
     let landingText = $state('');
     let bandBio = $state('');
@@ -18,6 +23,21 @@
         // Left empty for implementation
         // Should handle text updates for landing page or band bio
     };
+
+    onMount(() => {
+       initApp();
+
+       const auth = getAuth();
+       const user = getAuthStore();
+
+       signInWithEmailAndPassword(auth, user.userCred.user.email, user.password)
+         .then((userCred) => {
+             alert(`You are authorized as ${userCred.user.email}`);
+         })
+         .catch((err) => {
+             alert("You are not authorized to view this site!");
+         });
+    });
 </script>
 
 <div class="dashboard-container">
@@ -25,21 +45,21 @@
         <button
                 class="tab-button"
                 class:active={activeTab === 'landing'}
-                on:click={() => activeTab = 'landing'}
+                onclick={() => activeTab = 'landing'}
         >
             Landing Page
         </button>
         <button
                 class="tab-button"
                 class:active={activeTab === 'music'}
-                on:click={() => activeTab = 'music'}
+                onclick={() => activeTab = 'music'}
         >
             Music
         </button>
         <button
                 class="tab-button"
                 class:active={activeTab === 'band'}
-                on:click={() => activeTab = 'band'}
+                onclick={() => activeTab = 'band'}
         >
             Meet the Band
         </button>
@@ -57,7 +77,7 @@
                                 type="file"
                                 accept="image/*"
                                 id="landing-image"
-                                on:change={() => handleImageUpload('landing')}
+                                onchange={() => handleImageUpload('landing')}
                         />
                         <label for="landing-image" class="upload-button">
                             {isUploading ? 'Uploading...' : 'Choose Image'}
@@ -74,7 +94,7 @@
                     ></textarea>
                     <button
                             class="save-button"
-                            on:click={() => handleTextUpdate('landing')}
+                            onclick={() => handleTextUpdate('landing')}
                     >
                         Save Text
                     </button>
@@ -93,7 +113,7 @@
                                 type="file"
                                 accept="audio/*"
                                 id="music-file"
-                                on:change={handleMusicUpload}
+                                onchange={handleMusicUpload}
                         />
                         <label for="music-file" class="upload-button">
                             {isUploading ? 'Uploading...' : 'Choose Music File'}
@@ -114,7 +134,7 @@
                                 type="file"
                                 accept="image/*"
                                 id="band-image"
-                                on:change={() => handleImageUpload('band')}
+                                onchange={() => handleImageUpload('band')}
                         />
                         <label for="band-image" class="upload-button">
                             {isUploading ? 'Uploading...' : 'Choose Image'}
@@ -131,7 +151,7 @@
                     ></textarea>
                     <button
                             class="save-button"
-                            on:click={() => handleTextUpdate('band')}
+                            onclick={() => handleTextUpdate('band')}
                     >
                         Save Biography
                     </button>

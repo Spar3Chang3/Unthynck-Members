@@ -1,13 +1,38 @@
 <script>
+    import { onMount } from 'svelte';
+    import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+    import { initApp } from '$lib/firebase.js';
+    import { goto } from '$app/navigation';
+    import { createAuthStore } from '$lib/authStore.js';
+
     let email = $state('');
     let password = $state('');
     let isLoading = $state(false);
 
-    const handleSubmit = async () => {
+    async function handleSubmit() {
         // Left empty for custom implementation
+
+        const auth = getAuth();
+        signInWithEmailAndPassword(auth, email, password)
+          .then((userCred) => {
+              if (userCred.user.email === email) {
+
+                  createAuthStore(userCred, password);
+
+                  goto('/dashboard');
+              }
+          })
+          .catch((err) => {
+              alert(`It didn't work! Error code ${err.code} and message: ${err.message}`);
+          });
     };
 
     let isFormValid = $derived(email && password);
+
+
+    onMount(() => {
+       initApp();
+    });
 </script>
 
 <section class="login">
