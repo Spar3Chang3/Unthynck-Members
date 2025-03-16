@@ -1,34 +1,6 @@
 <script lang="js">
-    import { onMount } from 'svelte';
 
     let { children } = $props();
-
-    let isMobile = $state(false);
-
-    //Stolen from Claude? Perhaps. But I understand it and didn't want to write it all out
-    //creates a query, then an event listener to change when updated
-    //I may be able to just do this from $derived, but eh this works
-    function setupMediaListeners() {
-        const mobileQuery = window.matchMedia('(max-width: 768px)');
-
-        // Set initial values
-        isMobile = mobileQuery.matches;
-
-        const updateMobile = (e) => isMobile = e.matches;
-        // Add listeners
-        mobileQuery.addEventListener('change', updateMobile);
-
-        // Return cleanup function
-        return () => {
-            mobileQuery.removeEventListener('change', updateMobile);
-        };
-    }
-
-
-    onMount(() => {
-        const cleanup = setupMediaListeners();
-        return cleanup;
-    });
 </script>
 
 <style lang="css">
@@ -78,17 +50,30 @@
     }
 
     main {
-        background-image: url("/backgrounds/standard-background.jpg");
-        background-repeat: repeat;
-        background-size: initial;
+        position: relative;
         overflow-x: hidden;
-        min-height: 100vh;
+        min-height: 100dvh;
         max-height: fit-content;
     }
+
+    .background {
+        position: absolute;
+
+        min-height: 100%;
+        width: 100%;
+
+        background-image: var(--background-standard);
+        background-repeat: repeat;
+        background-position: center top;
+
+        filter: blur(1px);
+    }
+
 
 </style>
 
 <main>
+    <div class="background"></div>
     {#if children}
         {@render children()}
     {:else}

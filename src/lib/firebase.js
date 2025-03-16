@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDownloadURL, getStorage, listAll, ref as storeRef } from 'firebase/storage';
-import { get, getDatabase, ref as dbRef, push } from 'firebase/database';
+import { get, getDatabase, ref as dbRef, push, update as dbUpdate } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
 	apiKey: 'AIzaSyAXm0O9pK1Pj2JxCjd-Zlwmn1PQTNlxB6I', //IT'S FINE I SWEAR THE CLIENT NEEDS IT
@@ -170,6 +171,26 @@ export async function getJsonIndexDownloads(parentPath) {
 		});
 
 	return indexJsonUrls;
+}
+
+export async function updateMembers(user, updatedObj) {
+	const db = getFirebaseDatabase();
+
+	try {
+		const userId = user.uid;
+		const idToken = await user.getIdToken();
+
+		const dbPath = `public/members/${userId}`;
+		const userRef = dbRef(db, dbPath);
+
+		await dbUpdate(userRef, updatedObj);
+
+		return { success: true, statusCode: 200, message: `Member ${updatedObj.name} has been updated`}
+	} catch (err) {
+		console.error('Could not update members: ', err);
+		return { success: false, statusCode: 500, message: `Failed to update member ${updatedObj.name}`, error: err.message };
+	}
+
 }
 
 export async function pushToContact(contactObj) {

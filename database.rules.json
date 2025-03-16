@@ -1,9 +1,10 @@
 {
-  /* Visit https://firebase.google.com/docs/database/security to learn more about security rules. */
   "rules": {
     "public": {
       ".read": true,
-      ".write": "auth != null"
+      "members": {
+        ".write": "auth != null && root.child('public/members').child(auth.uid).exists()"
+      }
     },
     "private": {
       ".read": false,

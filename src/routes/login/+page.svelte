@@ -1,23 +1,23 @@
 <script>
     import { onMount } from 'svelte';
-    import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+    import { browserLocalPersistence, getAuth, setPersistence, signInWithEmailAndPassword } from 'firebase/auth';
     import { initApp } from '$lib/firebase.js';
     import { goto } from '$app/navigation';
-    import { createAuthStore } from '$lib/authStore.js';
 
     let email = $state('');
     let password = $state('');
     let isLoading = $state(false);
 
+    let isFormValid = $derived(email && password);
+
     async function handleSubmit() {
-        // Left empty for custom implementation
 
         const auth = getAuth();
         signInWithEmailAndPassword(auth, email, password)
           .then((userCred) => {
               if (userCred.user.email === email) {
 
-                  createAuthStore(userCred, password);
+                  setPersistence(auth, browserLocalPersistence);
 
                   goto('/dashboard');
               }
@@ -25,9 +25,7 @@
           .catch((err) => {
               alert(`It didn't work! Error code ${err.code} and message: ${err.message}`);
           });
-    };
-
-    let isFormValid = $derived(email && password);
+    }
 
 
     onMount(() => {
@@ -95,13 +93,14 @@
 
 <style>
     .login {
-        height: 100vh;
+        height: 100dvh;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
     .login-box {
+        position: relative;
         display: flex;
         flex-direction: column;
 
@@ -138,8 +137,10 @@
     }
 
     .input-group {
+        position: relative;
         display: flex;
         flex-direction: column;
+        width: 400px;
         gap: 1rem;
     }
 
@@ -156,7 +157,7 @@
 
     input[type="email"],
     input[type="password"] {
-        min-width: 30dvw;
+        min-width: 200px;
         padding: 0.75rem;
         border: 0.1rem solid var(--banner-accent);
         font-size: 0.875rem;

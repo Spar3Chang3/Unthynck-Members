@@ -3,7 +3,7 @@
     "rules": "database.rules.json"
   },
   "hosting": {
-    "target": "member-unthynck-band",
+    "target": "members",
     "public": "public",
     "ignore": [
       "firebase.json",
