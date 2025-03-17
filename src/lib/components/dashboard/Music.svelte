@@ -1,13 +1,17 @@
 <script lang="js">
 	import { onMount } from 'svelte';
-	import { initStorage } from '$lib/firebase.js';
+	import { initStorage, AddAlbum } from '$lib/firebase.js';
+	import { IconLinks } from '$lib/index.js';
 
 	let { isUploading = $bindable(false), storage = false } = $props();
 
 	let labelSize = $state(0);
+	let uploadingSongs = $state(false);
 
 	let albumArt = $state();
+	let albumArtFile = $state();
 	let albumArtUploaded = $state(false);
+
 	let albumName = $state("");
 
 	let songFiles = $state([]);
@@ -29,6 +33,7 @@
 		currentArt.onload = () => {
 			albumArt = currentArt;
 			albumArtUploaded = true;
+			albumArtFile = file;
 		}
 
 		currentArt.src = url;
@@ -45,7 +50,7 @@
 					const fileName = file.name;
 					const firstSpaceIndex = fileName.indexOf(' ');
 					const trackNumber = fileName.slice(0, firstSpaceIndex);
-					const trackName = fileName.slice(firstSpaceIndex + 1);
+					const trackName = fileName.slice(firstSpaceIndex + 1).split('.')[0];
 					const url = URL.createObjectURL(file);
 
 					const audio = new Audio(url);
@@ -55,6 +60,7 @@
 							trackNumber: trackNumber,
 							trackName: trackName,
 							trackDuration: Math.round(audio.duration),
+							trackPath: `releases/${albumName}/music`,
 							fileName: fileName,
 							artworkPath: `releases/${albumName}/art`,
 							trackDescription: '',
@@ -77,6 +83,29 @@
 
 	function pushSongs(e) {
 		e.preventDefault();
+		uploadingSongs = true;
+
+		if (songIndex.length <= 1) {
+			return;
+		}
+
+		AddAlbum(albumName, albumArtFile, songFiles, songIndex).then((res) => {
+			if (res.length === 3) {
+				alert("Songs have been uploaded!");
+				uploadingSongs = false;
+				songFiles = [];
+				songIndex = [];
+				albumArt = null;
+				albumArtFile = null;
+				albumArtUploaded = false;
+				uploadingSongs = false;
+
+				albumName = "";
+
+			} else if (!res.success) {
+				alert("Something went wrong!" + res.message);
+			}
+		});
 	}
 
 	onMount(() => {
@@ -345,6 +374,29 @@
         transition: 100ms ease;
     }
 
+    .loading-model {
+        margin-bottom: 1rem;
+    }
+
+
+    .loading-model img {
+        height: 10dvh;
+        width: 10dvh;
+        object-fit: contain;
+
+        animation: rotate 1s infinite linear;
+    }
+
+    @keyframes rotate {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+
 </style>
 <div class="music">
 	<h2>Music Management</h2>
@@ -384,38 +436,45 @@
 		</div>
 	</div>
 
-	<div class="song-index-display">
-		{#if albumArtUploaded}
-			<div class="album-info">
-				<img src={albumArt.src} alt="Album Art"/>
-				<h3>{albumName}</h3>
-			</div>
-		{/if}
-		{#each songIndex as song, index}
-			<div class="uploaded-song">
-				<div class="track-number">
-					<h4>{song.trackNumber}</h4>
-					<hr/>
+	{#if uploadingSongs}
+		<div class="loading-model">
+			<img src={IconLinks.loader} alt="Loading Icon" />
+		</div>
+	{:else}
+		<div class="song-index-display">
+			{#if albumArtUploaded}
+				<div class="album-info">
+					<img src={albumArt.src} alt="Album Art"/>
+					<h3>{albumName}</h3>
 				</div>
-				<div class="song-info">
-					<h4>{song.trackName}</h4>
-					<pre>{JSON.stringify(song, null, 2)}</pre>
-					<textarea
-						bind:value={songIndex[index].trackDescription}
-						placeholder="Enter track description..."
-						rows="3"
-					></textarea>
+			{/if}
+			{#each songIndex as song, index}
+				<div class="uploaded-song">
+					<div class="track-number">
+						<h4>{song.trackNumber}</h4>
+						<hr/>
+					</div>
+					<div class="song-info">
+						<h4>{song.trackName}</h4>
+						<pre>{JSON.stringify(song, null, 2)}</pre>
+						<textarea
+							bind:value={songIndex[index].trackDescription}
+							placeholder="Enter track description..."
+							rows="3"
+						></textarea>
+					</div>
 				</div>
-			</div>
-		{/each}
-	</div>
+			{/each}
+		</div>
 
-	<div class="finish-upload"
-			 style:visibility={isUploading ? 'visible' : 'visible'}
-	>
-		<button class="save-button"
-						onclick={pushSongs}
-		>Upload To Website
-		</button>
-	</div>
+		<div class="finish-upload"
+				 style:visibility={isUploading ? 'visible' : 'visible'}
+		>
+			<button class="save-button"
+							onclick={pushSongs}
+			>Upload To Website
+			</button>
+		</div>
+	{/if}
+
 </div>

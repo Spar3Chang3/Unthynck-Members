@@ -35,6 +35,8 @@
 						url: url,
 						platform: ratio.recommendedPlatform,
 						aspectRatio: `~ ${ratio.ratio}`,
+						height: height,
+						width: width
 					});
 				}
 				currentImg.src = url;
@@ -169,6 +171,8 @@
 
 			height: fit-content;
 			max-width: 95%;
+
+			gap: 1rem;
 	}
 
 	.uploaded-img {
@@ -177,6 +181,7 @@
 			grid-template-columns: 50% 50%;
 
 			height: fit-content;
+			min-width: 400px;
 			max-width: 100%;
 
 			justify-content: center;
@@ -188,8 +193,8 @@
 
 	.uploaded-img img {
 			position: relative;
-			height: 100%;
-			width: 100%;
+			height: 95%;
+			width: 95%;
 
 			object-fit: contain;
 			object-position: center;
@@ -219,8 +224,8 @@
 			justify-content: center;
 			align-items: start;
 
-			font-family: sans-serif;
-			font-size: 1.2rem;
+			font-size: 1.25rem;
+			font-family: var(--font-standard);
 	}
 
 	.button-group {
@@ -244,11 +249,14 @@
 
 			text-align: center;
 			font-size: 1rem;
+			font-family: var(--font-standard);
 
       box-shadow: 0 4px 5px rgba(0, 0, 0, 0.08);
 			background-color: var(--primary-color);
 			color: whitesmoke;
 			transition: 100ms ease;
+
+			cursor: pointer;
   }
 
   .upload-section, .text-section {
@@ -325,6 +333,7 @@
 						<div class="img-info">
 							<p>{image.name}</p>
 							<p>{calculateNearestSize(image.size)}</p>
+							<p>{`${image.width} × ${image.height}`}</p>
 							<p>{image.aspectRatio}</p>
 						</div>
 						<div class="button-group">

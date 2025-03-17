@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDownloadURL, getStorage, listAll, ref as storeRef } from 'firebase/storage';
+import { getDownloadURL, getStorage, listAll, ref as storeRef, uploadBytes } from 'firebase/storage';
 import { get, getDatabase, ref as dbRef, push, update as dbUpdate } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
 
@@ -24,6 +24,8 @@ const firebaseConfig = {
 let firebaseApp;
 let firebaseStorage;
 let firebaseDatabase;
+
+let auth;
 
 export function initApp() {
 	return (firebaseApp = initializeApp(firebaseConfig));
@@ -174,11 +176,14 @@ export async function getJsonIndexDownloads(parentPath) {
 }
 
 export async function updateMembers(user, updatedObj) {
+	if (!auth) {
+		auth = getAuth();
+	}
+
 	const db = getFirebaseDatabase();
 
 	try {
 		const userId = user.uid;
-		const idToken = await user.getIdToken();
 
 		const dbPath = `public/members/${userId}`;
 		const userRef = dbRef(db, dbPath);
@@ -192,6 +197,50 @@ export async function updateMembers(user, updatedObj) {
 	}
 
 }
+
+export async function AddAlbum(albumName, art, songFiles, index) {
+	const storage = getFirebaseStorage();
+	const indexString = JSON.stringify(index, null, 2);
+	const indexBlob = new Blob([indexString], { type: 'application/json' });
+
+	try {
+		// Upload art first
+		const artRef = storeRef(storage, `releases/${albumName}/art/art.png`);
+		const artRes = await uploadBytes(artRef, art).catch((err) => {
+			throw new Error('Failed to upload art: ' + err.message);
+		});
+		const artMessage = { success: true, message: "Successfully uploaded art.png", promise: artRes };
+
+		//Upload songs in parallel
+		const songUploadPromises = songFiles.map((songFile) => {
+			const songRef = storeRef(storage, `releases/${albumName}/music/${songFile.name}`);
+			return uploadBytes(songRef, songFile)  // Upload each song file
+				.then(() => ({ success: true, message: `Successfully uploaded ${songFile.name}` }))
+				.catch((error) => ({ success: false, message: `Failed to upload ${songFile.name}: ${error.message}` }));
+		});
+
+		const songResults = await Promise.all(songUploadPromises);
+		const rejected = songResults.some(result => !result.success);  //Check for any failed uploads
+		if (rejected) {
+			throw new Error("One or more song uploads failed");
+		}
+
+		// Upload index
+		const indexRef = storeRef(storage, `releases/${albumName}/index.json`);
+		const indexRes = await uploadBytes(indexRef, indexBlob).catch((err) => {
+			throw new Error('Failed to upload index.json: No result returned');
+		});
+		const indexMessage = { success: true, message: "Successfully uploaded index.json", promise: indexRes };
+
+		// Return all results
+		return { artMessage, songResults, indexMessage };
+
+	} catch (err) {
+		console.error('Could not add album: ', err);
+		return { success: false, statusCode: 500, message: err.message };
+	}
+}
+
 
 export async function pushToContact(contactObj) {
 	const db = getFirebaseDatabase();

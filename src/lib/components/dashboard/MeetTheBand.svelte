@@ -59,8 +59,10 @@
 		const currentPortrait = new Image();
 
 		currentPortrait.onload = () => {
+			dataRetrieved = false;
 			portrait = currentPortrait;
 			imagePath = currentPortrait.src;
+			dataRetrieved = true;
 		}
 
 		currentPortrait.src = url;

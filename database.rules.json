@@ -3,7 +3,7 @@
     "public": {
       ".read": true,
       "members": {
-        ".write": "auth != null && root.child('public/members').child(auth.uid).exists()"
+        ".write": "auth != null && root.child('private/members').child(auth.uid).exists()"
       }
     },
     "private": {
