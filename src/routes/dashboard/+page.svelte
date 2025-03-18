@@ -17,6 +17,8 @@
     let authed = $state(false);
     let userName = $state("");
 
+    let userUid = $state();
+
     let top = $state();
 
     function changeTab(newTab) {
@@ -42,6 +44,7 @@
                 console.log(`User authed as ${user.email}`);
                 userName = user.email.split('@')[0];
                 authed = true;
+                userUid = user.uid;
             } else {
                 console.log(`User not authed because of one error or another`);
                 goto('/login');
@@ -99,7 +102,7 @@
 
         {#if activeTab === 'band'}
             <div class="content-area">
-                <MeetTheBand />
+                <MeetTheBand uid={userUid}/>
             </div>
         {/if}
     </div>

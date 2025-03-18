@@ -27,6 +27,7 @@
 		let preload = new Image();
 
 		if (usingUploadedImage) {
+			console.log(imagePath);
 			preload.src = imagePath;
 		} else {
 			await getFileFromStorage(imagePath, "portrait.jpg").then((downloadPath) => {

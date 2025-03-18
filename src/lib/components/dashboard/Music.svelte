@@ -90,7 +90,7 @@
 		}
 
 		AddAlbum(albumName, albumArtFile, songFiles, songIndex).then((res) => {
-			if (res.length === 3) {
+			if (res.indexMessage) {
 				alert("Songs have been uploaded!");
 				uploadingSongs = false;
 				songFiles = [];

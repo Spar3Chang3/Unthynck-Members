@@ -1,7 +1,8 @@
 <script lang="js">
 	import { onMount } from 'svelte';
 	import BandCard from '$lib/components/band/BandCard.svelte';
-	import { initDatabase, getDataFromDatabase, initStorage } from '$lib/firebase.js';
+	import { initDatabase, getDataFromDatabase, initStorage, updateMembers, updateMemberPortrait } from '$lib/firebase.js';
+	import { IconLinks } from '$lib';
 
 	const memberDataPath = 'public/members';
 
@@ -10,32 +11,40 @@
 	let memberId = $state("");
 	let aboutMe = $state("");
 	let imagePath = $state("");
+	let defaultImagePath = $state("");
 	let position = $state("");
 	let instagramLink = $state("");
 	let facebookLink = $state("");
 
-	let portrait = $state();
+	let uploadedPortrait = $state();
+
 	let usingUploadedImage = $state(false);
 
 	let labelSize = $state(0);
 	let dataRetrieved = $state(false);
+	let uploadingData = $state(false);
 
-	let { isUploading = $bindable(false), storage = false, db = false } = $props();
+	let { isUploading = $bindable(false), storage = false, db = false, uid = "" } = $props();
 
 	async function fetchMemberData() {
 		await getDataFromDatabase(memberDataPath).then((data) => {
 			const memberSet = Object.values(data);
-			const randomNum = Math.floor(Math.random() * memberSet.length);
-			memberName = memberSet[randomNum].name;
-			memberHp = memberSet[randomNum].hp;
-			memberId = memberSet[randomNum].id;
-			aboutMe = memberSet[randomNum].aboutMe;
-			imagePath = memberSet[randomNum].imagePath;
-			position = memberSet[randomNum].position;
-			instagramLink = memberSet[randomNum].instagramLink;
-			facebookLink = memberSet[randomNum].facebookLink;
-
-			dataRetrieved = true;
+			const currentMember = memberSet.filter(member => member.uid === uid)[0];
+			console.log(currentMember);
+			if (currentMember) {
+				memberName = currentMember.name;
+				memberHp = currentMember.hp;
+				memberId = currentMember.id;
+				aboutMe = currentMember.aboutMe;
+				imagePath = currentMember.imagePath;
+				defaultImagePath = currentMember.imagePath;
+				position = currentMember.position;
+				instagramLink = currentMember.instagramLink;
+				facebookLink = currentMember.facebookLink;
+				dataRetrieved = true;
+			} else {
+				alert("User not found!");
+			}
 		}).catch((err) => {
 			alert(("Could not obtain members :( Please try refreshing or come back later - " + err));
 		})
@@ -44,7 +53,7 @@
 	function handlePortraitUpload(e) {
 		e.preventDefault();
 
-		let file = e.target.files;
+		let file = Array.from(e.target.files)[0];
 
 		if (file.length > 1) {
 			file = file[0];
@@ -56,22 +65,43 @@
 
 		const url = URL.createObjectURL(file);
 
-		const currentPortrait = new Image();
+		uploadedPortrait = new Image();
 
-		currentPortrait.onload = () => {
-			dataRetrieved = false;
-			portrait = currentPortrait;
-			imagePath = currentPortrait.src;
-			dataRetrieved = true;
+		uploadedPortrait.onload = () => {
+			imagePath = uploadedPortrait.src;
+			usingUploadedImage = true;
 		}
 
-		currentPortrait.src = url;
+		uploadedPortrait.src = url;
 		isUploading = true;
-		usingUploadedImage = true;
 	}
 
 	function pushCardUpdate(e) {
 		e.preventDefault();
+		uploadingData = true;
+		let alertContent = "";
+
+		updateMembers({
+			aboutMe: aboutMe,
+			facebookLink: facebookLink,
+			hp: memberHp,
+			id: memberId,
+			imagePath: defaultImagePath,
+			instagramLink: instagramLink,
+			name: memberName,
+			position: position,
+			uid: uid
+		}).then((res) => {
+			if (usingUploadedImage) {
+				updateMemberPortrait(defaultImagePath, imagePath).then((res) => {
+					alertContent += res.message + " | ";
+				});
+			}
+			alertContent += res.message;
+		}).then(() => {
+			alert(alertContent);
+			uploadingData = false;
+		});
 
 	}
 
@@ -259,63 +289,89 @@
 				align-items: center;
 		}
 
+    .loading-model {
+        margin-bottom: 1rem;
+    }
+
+
+    .loading-model img {
+        height: 10dvh;
+        width: 10dvh;
+        object-fit: contain;
+
+        animation: rotate 1s infinite linear;
+    }
+
+    @keyframes rotate {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
 </style>
 <div class="meet-the-band">
-	<div class="upload-section">
-		<h3>Update Band Card</h3>
-		<div class="file-upload">
-			<div class="input-section">
-				<input
-					type="file"
-					accept="image/*"
-					id="portrait"
-					onchange={handlePortraitUpload}
-				/>
-				<label for="portrait" class="upload-button" style="width: {labelSize}px">Choose Portrait (JPG)</label>
-			</div>
+	{#if uploadingData}
+		<div class="loading-model">
+			<img src={IconLinks.loader} alt="Loading Icon" />
+		</div>
+	{:else}
+		<div class="upload-section">
+			<h3>Update Band Card</h3>
+			<div class="file-upload">
+				<div class="input-section">
+					<input
+						type="file"
+						accept="image/*"
+						id="portrait"
+						onchange={handlePortraitUpload}
+					/>
+					<label for="portrait" class="upload-button" style="width: {labelSize}px">Choose Portrait (JPG)</label>
+				</div>
 
-			<div class="input-section">
-				<label for="member-name" class="text-input-label">Name</label>
-				<input
-					type="text"
-					id="member-name"
-					bind:value={memberName}
-				/>
-			</div>
+				<div class="input-section">
+					<label for="member-name" class="text-input-label">Name</label>
+					<input
+						type="text"
+						id="member-name"
+						bind:value={memberName}
+					/>
+				</div>
 
-			<div class="input-section">
-				<label for="member-hp" class="text-input-label">HP</label>
-				<input
-					type="number"
-					id="member-hp"
-					bind:value={memberHp}
-				/>
-			</div>
+				<div class="input-section">
+					<label for="member-hp" class="text-input-label">HP</label>
+					<input
+						type="number"
+						id="member-hp"
+						bind:value={memberHp}
+					/>
+				</div>
 
-			<div class="input-section">
-				<label for="member-position" class="text-input-label">Position</label>
-				<input
-					type="text"
-					id="member-position"
-					bind:value={position}
-				/>
-			</div>
+				<div class="input-section">
+					<label for="member-position" class="text-input-label">Position</label>
+					<input
+						type="text"
+						id="member-position"
+						bind:value={position}
+					/>
+				</div>
 
-			<div class="input-section">
-				<label for="member-about-me" class="text-input-label">About Me</label>
-							<textarea
-								bind:value={aboutMe}
-								id="member-about-me"
-								placeholder="something about you..."
-								rows="3"
-							></textarea>
+				<div class="input-section">
+					<label for="member-about-me" class="text-input-label">About Me</label>
+					<textarea
+						bind:value={aboutMe}
+						id="member-about-me"
+						placeholder="something about you..."
+						rows="3"
+					></textarea>
+				</div>
 			</div>
 		</div>
-	</div>
+	{/if}
 
-	<div class="finish-upload"
-			 style:visibility={isUploading ? 'visible' : 'visible'}
-	>
+	<div class="finish-upload">
 		<button class="save-button"
 						onclick={pushCardUpdate}
 		>Update Band Card
@@ -326,17 +382,31 @@
 
 	{#if dataRetrieved}
 		<div class="preview">
-			<BandCard
-				name={memberName}
-				hp={memberHp}
-				id={memberId}
-				aboutMe={aboutMe}
-				imagePath={imagePath}
-				position={position}
-				instagramLink={instagramLink}
-				facebookLink={facebookLink}
-				usingUploadedImage={usingUploadedImage}
-			/>
+			{#if usingUploadedImage}
+				<BandCard
+					name={memberName}
+					hp={memberHp}
+					id={memberId}
+					aboutMe={aboutMe}
+					imagePath={uploadedPortrait.src}
+					position={position}
+					instagramLink={instagramLink}
+					facebookLink={facebookLink}
+					usingUploadedImage={true}
+				/>
+			{:else}
+				<BandCard
+					name={memberName}
+					hp={memberHp}
+					id={memberId}
+					aboutMe={aboutMe}
+					imagePath={defaultImagePath}
+					position={position}
+					instagramLink={instagramLink}
+					facebookLink={facebookLink}
+					usingUploadedImage={false}
+				/>
+			{/if}
 		</div>
 	{/if}
 </div>

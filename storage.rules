@@ -4,7 +4,7 @@ service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
       allow read: if true; // Public read access
-      allow write: if request.auth != null && (request.auth.uid == 'f8NXsqNJRDZant25EFTFK16xmL53' || request.auth.uid == 'EBMkRGIdIchMdG0EOcJ2LcCh42k1');
+      allow write: if request.auth != null && (request.auth.uid == 'f8NXsqNJRDZant25EFTFK16xmL53' || request.auth.uid == 'EBMkRGIdIchMdG0EOcJ2LcCh42k1' || request.auth.uid == 'rsPKJh602kcALzR7cUUd3ItRNv33' || request.auth.uid == '8ZmY6BGW7yarTWaH66XwdEDtVk72' || request.auth.uid == 'WsmdI1gFNYTbmA4w5jBajhESxJw2');
     }
   }
 }

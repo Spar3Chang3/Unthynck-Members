@@ -175,7 +175,7 @@ export async function getJsonIndexDownloads(parentPath) {
 	return indexJsonUrls;
 }
 
-export async function updateMembers(user, updatedObj) {
+export async function updateMembers(updatedObj) {
 	if (!auth) {
 		auth = getAuth();
 	}
@@ -183,9 +183,8 @@ export async function updateMembers(user, updatedObj) {
 	const db = getFirebaseDatabase();
 
 	try {
-		const userId = user.uid;
 
-		const dbPath = `public/members/${userId}`;
+		const dbPath = `public/members/${("" + updatedObj.id).padStart(2, "0")}`;
 		const userRef = dbRef(db, dbPath);
 
 		await dbUpdate(userRef, updatedObj);
@@ -196,6 +195,22 @@ export async function updateMembers(user, updatedObj) {
 		return { success: false, statusCode: 500, message: `Failed to update member ${updatedObj.name}`, error: err.message };
 	}
 
+}
+
+export async function updateMemberPortrait(portraitPath, newPortraitSrc) {
+	const storage = getFirebaseStorage();
+	const portrait = new Blob([(new Image().src=newPortraitSrc)], { type: 'image/jpg' });
+
+	try {
+		const portraitRef = storeRef(storage, portraitPath);
+		await uploadBytes(portraitRef, portrait).catch((err) => {
+			throw new Error('Failed to upload portrait: ' + err.message);
+		});
+
+		return { success: true, message: "Successfully uploaded portrait" }
+	} catch (e) {
+		return { success: false, message: e.message }
+	}
 }
 
 export async function AddAlbum(albumName, art, songFiles, index) {
