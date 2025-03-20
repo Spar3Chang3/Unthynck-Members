@@ -1,7 +1,7 @@
 <script lang="js">
 	import { onMount } from 'svelte';
 	import { initStorage, AddAlbum } from '$lib/firebase.js';
-	import { IconLinks } from '$lib/index.js';
+	import ProgressBar from '$lib/components/layout/ProgressBar.svelte';
 
 	let { isUploading = $bindable(false), storage = false } = $props();
 
@@ -16,6 +16,10 @@
 
 	let songFiles = $state([]);
 	let songIndex = $state([]);
+
+	let uploadPromises = $state();
+	let uploadFailed = $state(false);
+	let uploadFinished = $state(false);
 
 	function handleArtUpload(e) {
 		e.preventDefault();
@@ -83,28 +87,14 @@
 
 	function pushSongs(e) {
 		e.preventDefault();
-		uploadingSongs = true;
 
 		if (songIndex.length <= 1) {
 			return;
 		}
 
 		AddAlbum(albumName, albumArtFile, songFiles, songIndex).then((res) => {
-			if (res.indexMessage) {
-				alert("Songs have been uploaded!");
-				uploadingSongs = false;
-				songFiles = [];
-				songIndex = [];
-				albumArt = null;
-				albumArtFile = null;
-				albumArtUploaded = false;
-				uploadingSongs = false;
-
-				albumName = "";
-
-			} else if (!res.success) {
-				alert("Something went wrong!" + res.message);
-			}
+			uploadPromises = res;
+			uploadingSongs = true;
 		});
 	}
 
@@ -332,6 +322,10 @@
 				margin-bottom: -0.5rem;
 		}
 
+		.song-info pre {
+				text-wrap: wrap;
+		}
+
 		textarea {
 				position: relative;
 				width: 95%;
@@ -372,19 +366,6 @@
         font-size: 1rem;
 
         transition: 100ms ease;
-    }
-
-    .loading-model {
-        margin-bottom: 1rem;
-    }
-
-
-    .loading-model img {
-        height: 10dvh;
-        width: 10dvh;
-        object-fit: contain;
-
-        animation: rotate 1s infinite linear;
     }
 
     @keyframes rotate {
@@ -437,9 +418,7 @@
 	</div>
 
 	{#if uploadingSongs}
-		<div class="loading-model">
-			<img src={IconLinks.loader} alt="Loading Icon" />
-		</div>
+		<ProgressBar uploadPromises={uploadPromises} bind:uploadFailed={uploadFailed} bind:uploadFinished={uploadFinished} />
 	{:else}
 		<div class="song-index-display">
 			{#if albumArtUploaded}
@@ -476,5 +455,15 @@
 			</button>
 		</div>
 	{/if}
+
+	<hr style="
+				width: 95%;
+        height: 0.1rem;
+        background-color: var(--banner-accent);
+        border: none;"/>
+
+	<div class="edit-song-info-section">
+
+	</div>
 
 </div>

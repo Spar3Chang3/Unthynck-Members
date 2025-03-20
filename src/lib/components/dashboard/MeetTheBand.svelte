@@ -1,8 +1,9 @@
 <script lang="js">
 	import { onMount } from 'svelte';
 	import BandCard from '$lib/components/band/BandCard.svelte';
-	import { initDatabase, getDataFromDatabase, initStorage, updateMembers, updateMemberPortrait } from '$lib/firebase.js';
-	import { IconLinks } from '$lib';
+	import ProgressBar from '$lib/components/layout/ProgressBar.svelte';
+	import { initDatabase, getDataFromDatabase, initStorage, updateMembers } from '$lib/firebase.js';
+	import { IconLinks } from '$lib/index.js';
 
 	const memberDataPath = 'public/members';
 
@@ -16,13 +17,16 @@
 	let instagramLink = $state("");
 	let facebookLink = $state("");
 
-	let uploadedPortrait = $state();
-
-	let usingUploadedImage = $state(false);
+	let uploadedPortraitName = $state();
 
 	let labelSize = $state(0);
 	let dataRetrieved = $state(false);
 	let uploadingData = $state(false);
+	let usingUploadedImage = $state(false);
+	let uploadFinished = $state(false);
+	let failedUpload = $state(false);
+
+	let uploadPromises = $state();
 
 	let { isUploading = $bindable(false), storage = false, db = false, uid = "" } = $props();
 
@@ -30,14 +34,14 @@
 		await getDataFromDatabase(memberDataPath).then((data) => {
 			const memberSet = Object.values(data);
 			const currentMember = memberSet.filter(member => member.uid === uid)[0];
-			console.log(currentMember);
 			if (currentMember) {
+				defaultImagePath = currentMember.imagePath;
+
 				memberName = currentMember.name;
 				memberHp = currentMember.hp;
 				memberId = currentMember.id;
 				aboutMe = currentMember.aboutMe;
 				imagePath = currentMember.imagePath;
-				defaultImagePath = currentMember.imagePath;
 				position = currentMember.position;
 				instagramLink = currentMember.instagramLink;
 				facebookLink = currentMember.facebookLink;
@@ -58,14 +62,11 @@
 		if (file.length > 1) {
 			file = file[0];
 		}
-
-		if (file.name !== 'portrait.jpg') {
-			file = new File([file], 'portrait.jpg', { type: 'image/jpeg', lastModified: file.lastModified });
-		}
+		uploadedPortraitName = file.name;
 
 		const url = URL.createObjectURL(file);
 
-		uploadedPortrait = new Image();
+		const uploadedPortrait = new Image();
 
 		uploadedPortrait.onload = () => {
 			imagePath = uploadedPortrait.src;
@@ -78,10 +79,8 @@
 
 	function pushCardUpdate(e) {
 		e.preventDefault();
-		uploadingData = true;
-		let alertContent = "";
 
-		updateMembers({
+		const newMemberObj = {
 			aboutMe: aboutMe,
 			facebookLink: facebookLink,
 			hp: memberHp,
@@ -91,18 +90,36 @@
 			name: memberName,
 			position: position,
 			uid: uid
-		}).then((res) => {
-			if (usingUploadedImage) {
-				updateMemberPortrait(defaultImagePath, imagePath).then((res) => {
-					alertContent += res.message + " | ";
-				});
+		}
+
+		updateMembers(newMemberObj, usingUploadedImage, imagePath).then((res) => {
+			console.log(res);
+			if (res[0].success) {
+				alert("Upload failed! ", res[0].message);
+			} else {
+				uploadPromises = res;
+				uploadingData = true;
 			}
-			alertContent += res.message;
-		}).then(() => {
-			alert(alertContent);
-			uploadingData = false;
 		});
 
+	}
+
+	function cancelImageUpload(e) {
+		e.preventDefault();
+
+		usingUploadedImage = false;
+	}
+
+	function updateAgain(e) {
+		e.preventDefault();
+
+		dataRetrieved = false;
+		uploadingData = false;
+		usingUploadedImage = false;
+		uploadFinished = false;
+		failedUpload = false;
+
+		fetchMemberData();
 	}
 
 	onMount(() => {
@@ -228,6 +245,62 @@
 				align-items: center;
 		}
 
+		.input-section-with-cancel {
+				position: relative;
+				display: flex;
+				flex-direction: row;
+
+				height: fit-content;
+				width: 100%;
+
+				align-items: center;
+				gap: 2rem;
+		}
+
+		.cancel-section {
+				position: relative;
+				display: flex;
+				flex-direction: row;
+
+				height: 100%;
+				width: fit-content;
+
+				justify-content: center;
+				align-items: center;
+
+				gap: 1rem;
+				margin-bottom: 2rem;
+		}
+
+		.cancel-section p {
+				margin: 0;
+		}
+
+		.cancel-button {
+				position: relative;
+				display: flex;
+
+				height: fit-content;
+				width: fit-content;
+
+				justify-content: center;
+				align-items: center;
+
+				padding: 0rem 0.25rem 0.25rem 0.25rem;
+
+				border: none;
+				font-size: 3rem;
+				line-height: 2.5rem;
+				background: none;
+				color: var(--text-standard);
+
+				transition: 100ms ease;
+		}
+
+		.cancel-button:active {
+				transform: scale(0.95);
+		}
+
     .text-input-label {
 				width: 100%;
         padding: 0.75rem 0.75rem 0.75rem 0;
@@ -314,14 +387,20 @@
 </style>
 <div class="meet-the-band">
 	{#if uploadingData}
-		<div class="loading-model">
-			<img src={IconLinks.loader} alt="Loading Icon" />
+		<div style="margin-top: 2rem;">
+			<ProgressBar uploadPromises={uploadPromises} bind:uploadFinished={uploadFinished} bind:failedUpload={failedUpload} />
+		</div>
+
+		<div class="upload-section">
+			<div class="input-section-with-cancel">
+				<button class="save-button" onclick={updateAgain}>Update Again</button>
+			</div>
 		</div>
 	{:else}
 		<div class="upload-section">
 			<h3>Update Band Card</h3>
 			<div class="file-upload">
-				<div class="input-section">
+				<div class="input-section-with-cancel">
 					<input
 						type="file"
 						accept="image/*"
@@ -329,6 +408,10 @@
 						onchange={handlePortraitUpload}
 					/>
 					<label for="portrait" class="upload-button" style="width: {labelSize}px">Choose Portrait (JPG)</label>
+					<div class="cancel-section" style:visibility={usingUploadedImage ? 'visible' : 'hidden'}>
+						<p>{uploadedPortraitName}</p>
+						<button class="cancel-button" onclick={cancelImageUpload}>&times;</button>
+					</div>
 				</div>
 
 				<div class="input-section">
@@ -369,14 +452,14 @@
 				</div>
 			</div>
 		</div>
-	{/if}
 
-	<div class="finish-upload">
-		<button class="save-button"
-						onclick={pushCardUpdate}
-		>Update Band Card
-		</button>
-	</div>
+		<div class="finish-upload">
+			<button class="save-button"
+							onclick={pushCardUpdate}
+			>Update Band Card
+			</button>
+		</div>
+	{/if}
 
 	<hr/>
 
@@ -388,7 +471,7 @@
 					hp={memberHp}
 					id={memberId}
 					aboutMe={aboutMe}
-					imagePath={uploadedPortrait.src}
+					imagePath={imagePath}
 					position={position}
 					instagramLink={instagramLink}
 					facebookLink={facebookLink}
@@ -407,6 +490,10 @@
 					usingUploadedImage={false}
 				/>
 			{/if}
+		</div>
+	{:else}
+		<div class="loading-model">
+			<img src={IconLinks.loader} alt="Loading Icon" />
 		</div>
 	{/if}
 </div>

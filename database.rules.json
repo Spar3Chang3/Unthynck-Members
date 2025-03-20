@@ -4,6 +4,9 @@
       ".read": true,
       "members": {
         ".write": "auth != null && root.child('private/members').child(auth.uid).exists()"
+      },
+      "landingPage": {
+        ".write": "auth != null && root.child('private/members').child(auth.uid).exists()"
       }
     },
     "private": {

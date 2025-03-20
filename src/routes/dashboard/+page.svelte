@@ -11,6 +11,7 @@
     const landing = 'landing';
     const music = 'music';
     const band = 'band';
+    const settings = 'settings';
 
     let activeTab = $state('landing');
     let isUploading = $state(false);
@@ -70,21 +71,28 @@
               class:active={activeTab === 'landing'}
               onclick={() => changeTab(landing)}
             >
-                Landing Page
+                Landing Page &#128075;
             </button>
             <button
               class="tab-button"
               class:active={activeTab === 'music'}
               onclick={() => changeTab(music)}
             >
-                Music
+                Music &#127911;
             </button>
             <button
               class="tab-button"
               class:active={activeTab === 'band'}
               onclick={() => changeTab(band)}
             >
-                Meet the Band
+                Meet the Band &#128248;
+            </button>
+            <button
+              class="tab-button"
+              class:active={activeTab === 'settings'}
+              onclick={() => changeTab(settings)}
+            >
+                Settings &#9881;
             </button>
         </nav>
 

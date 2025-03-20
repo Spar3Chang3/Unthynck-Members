@@ -1,7 +1,12 @@
 import { initializeApp } from 'firebase/app';
-import { getDownloadURL, getStorage, listAll, ref as storeRef, uploadBytes } from 'firebase/storage';
-import { get, getDatabase, ref as dbRef, push, update as dbUpdate } from 'firebase/database';
-import { getAuth } from 'firebase/auth';
+import {
+	getDownloadURL,
+	getStorage,
+	listAll,
+	ref as storeRef,
+	uploadBytes
+} from 'firebase/storage';
+import { get, getDatabase, push, ref as dbRef, update as dbUpdate } from 'firebase/database';
 
 const firebaseConfig = {
 	apiKey: 'AIzaSyAXm0O9pK1Pj2JxCjd-Zlwmn1PQTNlxB6I', //IT'S FINE I SWEAR THE CLIENT NEEDS IT
@@ -175,41 +180,87 @@ export async function getJsonIndexDownloads(parentPath) {
 	return indexJsonUrls;
 }
 
-export async function updateMembers(updatedObj) {
-	if (!auth) {
-		auth = getAuth();
-	}
+export async function updateLandingPage(newImages, landingPageText) {
+	const storage = getFirebaseStorage();
+	const db = getFirebaseDatabase();
+	let imageBlobs;
+	let uploadPromises;
 
+	try {
+		const dbPath = 'public/landingPage';
+		const landingTextRef = dbRef(db, dbPath);
+
+		if (newImages.length > 0) {
+			imageBlobs = newImages.map((image) => {
+				const extension = image.name.split('.').pop().toLowerCase();
+				const id = `${Date.now()}-${Math.floor(Math.random() * 1000000)}.${extension}`;
+				return { name: image.name, blobUrl: image.blobUrl, platform: image.platform, id: id };
+			});
+
+			uploadPromises = imageBlobs.map((blob) => {
+				const imageRef = storeRef(storage, `images/slideshow/${blob.platform}/${blob.id}`);
+				const uploadPromise = uploadBytes(imageRef, blob.blobUrl);
+				return { name: blob.name, promise: uploadPromise };
+			});
+		}
+
+		const dbPromise = {
+			name: 'Landing Page Text',
+			promise: dbUpdate(landingTextRef, { text: landingPageText })
+		};
+
+		if (newImages.length > 0) {
+			return [dbPromise, ...uploadPromises];
+		} else {
+			return [dbPromise];
+		}
+	} catch (err) {
+		console.error('Could not update landing page: ', err);
+		return [{ success: false, statusCode: 500, message: err }];
+	}
+}
+
+export async function updateMembers(updatedObj, isUsingUploadedImage, newPortraitPath) {
 	const db = getFirebaseDatabase();
 
 	try {
-
-		const dbPath = `public/members/${("" + updatedObj.id).padStart(2, "0")}`;
+		const dbPath = `public/members/${('' + updatedObj.id).padStart(2, '0')}`;
 		const userRef = dbRef(db, dbPath);
 
-		await dbUpdate(userRef, updatedObj);
+		const dbPromise = { name: 'Member Data', promise: dbUpdate(userRef, updatedObj) };
 
-		return { success: true, statusCode: 200, message: `Member ${updatedObj.name} has been updated`}
+		if (isUsingUploadedImage) {
+			const portraitUploadPromise = updateMemberPortrait(updatedObj.imagePath, newPortraitPath);
+			console.log(portraitUploadPromise);
+
+			return [{ name: 'portrait.jpg', promise: portraitUploadPromise }, dbPromise];
+		} else {
+			return [dbPromise];
+		}
 	} catch (err) {
 		console.error('Could not update members: ', err);
-		return { success: false, statusCode: 500, message: `Failed to update member ${updatedObj.name}`, error: err.message };
+		return [
+			{
+				success: false,
+				statusCode: 500,
+				message: `Failed to update member ${updatedObj.name}: ${err.message}`
+			}
+		];
 	}
-
 }
 
-export async function updateMemberPortrait(portraitPath, newPortraitSrc) {
+async function updateMemberPortrait(portraitPath, newPortrait) {
 	const storage = getFirebaseStorage();
-	const portrait = new Blob([(new Image().src=newPortraitSrc)], { type: 'image/jpg' });
 
 	try {
-		const portraitRef = storeRef(storage, portraitPath);
-		await uploadBytes(portraitRef, portrait).catch((err) => {
-			throw new Error('Failed to upload portrait: ' + err.message);
-		});
+		const res = await fetch(newPortrait);
+		const portrait = await res.blob();
 
-		return { success: true, message: "Successfully uploaded portrait" }
+		const portraitRef = storeRef(storage, `${portraitPath}/portrait.jpg`);
+		return uploadBytes(portraitRef, portrait);
 	} catch (e) {
-		return { success: false, message: e.message }
+		console.error('Could not update member portrait: ', e);
+		return [{ success: false, message: e.message }];
 	}
 }
 
@@ -221,41 +272,28 @@ export async function AddAlbum(albumName, art, songFiles, index) {
 	try {
 		// Upload art first
 		const artRef = storeRef(storage, `releases/${albumName}/art/art.png`);
-		const artRes = await uploadBytes(artRef, art).catch((err) => {
-			throw new Error('Failed to upload art: ' + err.message);
-		});
-		const artMessage = { success: true, message: "Successfully uploaded art.png", promise: artRes };
+		const artRes = uploadBytes(artRef, art);
+		const artUploadPromise = { name: 'art.png', promise: artRes };
 
 		//Upload songs in parallel
 		const songUploadPromises = songFiles.map((songFile) => {
 			const songRef = storeRef(storage, `releases/${albumName}/music/${songFile.name}`);
-			return uploadBytes(songRef, songFile)  // Upload each song file
-				.then(() => ({ success: true, message: `Successfully uploaded ${songFile.name}` }))
-				.catch((error) => ({ success: false, message: `Failed to upload ${songFile.name}: ${error.message}` }));
+			const uploadPromise = uploadBytes(songRef, songFile);
+			return { name: songFile.name, promise: uploadPromise };
 		});
-
-		const songResults = await Promise.all(songUploadPromises);
-		const rejected = songResults.some(result => !result.success);  //Check for any failed uploads
-		if (rejected) {
-			throw new Error("One or more song uploads failed");
-		}
 
 		// Upload index
 		const indexRef = storeRef(storage, `releases/${albumName}/index.json`);
-		const indexRes = await uploadBytes(indexRef, indexBlob).catch((err) => {
-			throw new Error('Failed to upload index.json: No result returned');
-		});
-		const indexMessage = { success: true, message: "Successfully uploaded index.json", promise: indexRes };
+		const indexRes = uploadBytes(indexRef, indexBlob);
+		const indexUploadPromise = { name: 'index.json', promise: indexRes };
 
 		// Return all results
-		return { artMessage, songResults, indexMessage };
-
+		return [artUploadPromise, ...songUploadPromises, indexUploadPromise];
 	} catch (err) {
 		console.error('Could not add album: ', err);
-		return { success: false, statusCode: 500, message: err.message };
+		return [{ success: false, statusCode: 500, message: err.message }];
 	}
 }
-
 
 export async function pushToContact(contactObj) {
 	const db = getFirebaseDatabase();
@@ -264,13 +302,27 @@ export async function pushToContact(contactObj) {
 	try {
 		const pushedData = await push(contactRef, contactObj);
 		if (pushedData.key !== null && pushedData.key !== undefined) {
-			return { success: true, statusCode: 200, message: 'Contact pushed successfully', data: pushedData };
+			return {
+				success: true,
+				statusCode: 200,
+				message: 'Contact pushed successfully',
+				data: pushedData
+			};
 		} else {
-			return { success: true, statusCode: undefined, message: 'Contact encountered an unexpected non-error', data: pushedData }
+			return {
+				success: true,
+				statusCode: undefined,
+				message: 'Contact encountered an unexpected non-error',
+				data: pushedData
+			};
 		}
 	} catch (err) {
 		console.error('Could not push contact ref: ', err);
-		return { success: false, statusCode: 500, message: 'Failed to push contact', error: err.message };
+		return {
+			success: false,
+			statusCode: 500,
+			message: 'Failed to push contact',
+			error: err.message
+		};
 	}
-
 }

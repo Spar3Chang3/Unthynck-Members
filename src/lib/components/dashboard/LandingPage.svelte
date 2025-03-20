@@ -1,12 +1,14 @@
 <script lang="js">
 	import { onMount } from 'svelte';
-	import { initStorage } from '$lib/firebase.js';
+	import { initStorage, updateLandingPage, getDataFromDatabase } from '$lib/firebase.js';
 	import { GetClosestAspectRatio } from '$lib/index.js';
+	import ProgressBar from '$lib/components/layout/ProgressBar.svelte';
 
 	let { isUploading = $bindable(false), storage = false } = $props();
 	let uploadedImages = $state([]);
 
 	let landingText = $state("");
+	let initialLandingText = $state("");
 
 	let labelSize = $state(0);
 
@@ -14,6 +16,20 @@
 	const desktop = "desktop";
 
 	const threshold = (5 * 1024 * 1024);
+	const landingTextPath = 'public/landingPage/text';
+
+	let uploadingData = $state(false);
+	let uploadPromises = $state();
+
+	let failedUpload = $state(false);
+	let uploadFinished = $state(false);
+
+	async function fetchLandingData() {
+		getDataFromDatabase(landingTextPath).then((data) => {
+			landingText = data;
+			initialLandingText = data;
+		});
+	}
 
 	function handleImageUpload(e) {
 			e.preventDefault();
@@ -22,17 +38,21 @@
 			for (const file of files) {
 				const url = URL.createObjectURL(file);
 				const currentImg = new Image();
-				currentImg.onload = () => {
+				currentImg.onload = async () => {
 					const width = currentImg.width;
 					const height = currentImg.height;
 
 					const ratio = GetClosestAspectRatio(width, height);
+
+					let blob = await fetch(url);
+					blob = await blob.blob();
 
 					uploadedImages.push({
 						name: file.name,
 						size: file.size,
 						type: file.type,
 						url: url,
+						blobUrl: blob,
 						platform: ratio.recommendedPlatform,
 						aspectRatio: `~ ${ratio.ratio}`,
 						height: height,
@@ -45,9 +65,50 @@
 			isUploading = true;
 	}
 
-	function handleTextUpdate(e) {
-		e.preventDefault();
-	}
+	// async function handleImageUploads(e) {
+	// 	e.preventDefault();
+	// 	const files = Array.from(e.target.files);
+	//
+	// 	//Iterate over each file
+	// 	const uploadPromises = files.map(async (file) => {
+	// 		const url = URL.createObjectURL(file);
+	// 		const currentImg = new Image();
+	//
+	// 		//Make sure to handle async correctly by waiting for the image load and blob fetch
+	// 		await new Promise((resolve) => {
+	// 			currentImg.onload = async () => {
+	// 				const width = currentImg.width;
+	// 				const height = currentImg.height;
+	// 				const ratio = GetClosestAspectRatio(width, height);
+	//
+	// 				//Fetch the image as a blob
+	// 				let blob = await fetch(url);
+	// 				blob = await blob.blob();
+	//
+	// 				//Push the object with the image data
+	// 				uploadedImages.push({
+	// 					name: file.name,
+	// 					size: file.size,
+	// 					type: file.type,
+	// 					url: url,
+	// 					blobUrl: blob,
+	// 					platform: ratio.recommendedPlatform,
+	// 					aspectRatio: `~ ${ratio.ratio}`,
+	// 					height: height,
+	// 					width: width
+	// 				});
+	//
+	// 				resolve();  //Resolve the promise after the image is fully loaded and processed
+	// 			};
+	// 		});
+	//
+	// 		currentImg.src = url;  //Trigger the image load
+	// 	});
+	//
+	// 	// Wait for all image processing promises to resolve
+	// 	await Promise.all(uploadPromises);
+	// }
+
 
 	function setPlatform(platform, index) {
 		uploadedImages[index] = {
@@ -73,8 +134,31 @@
 		return `${Math.floor(size)} ${units[unitIndex]} ${qualityMarker}`;
 	}
 
-	function pushImages(e) {
+	async function pushData(e) {
 		e.preventDefault();
+
+		if (landingText !== initialLandingText || uploadedImages.length > 0) {
+			updateLandingPage(uploadedImages, landingText).then((res) => {
+				console.log(res);
+				if (res[0].success) {
+					alert("Updating the landing page failed!", res[0].message);
+				} else {
+					uploadPromises = res;
+					uploadingData = true;
+				}
+			});
+		}
+	}
+
+	function updateAgain(e) {
+		e.preventDefault();
+
+		uploadedImages = [];
+		uploadingData = false;
+		failedUpload = false;
+		uploadFinished = false;
+
+		fetchLandingData();
 	}
 
 	onMount(() => {
@@ -84,6 +168,8 @@
 
 		const button = document.querySelector('.save-button');
 		labelSize = button.offsetWidth;
+
+		fetchLandingData();
 	});
 
 </script>
@@ -155,6 +241,18 @@
 			text-align: center;
   }
 
+    .input-section-with-cancel {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+
+        height: fit-content;
+        width: 100%;
+
+        align-items: center;
+        gap: 2rem;
+    }
+
   .upload-button:hover, .save-button:hover {
       background-color: var(--banner-accent);
   }
@@ -193,8 +291,8 @@
 
 	.uploaded-img img {
 			position: relative;
-			height: 95%;
-			width: 95%;
+			height: 85%;
+			width: 85%;
 
 			object-fit: contain;
 			object-position: center;
@@ -310,73 +408,76 @@
 <div class="landing-page">
 	<h2>Landing Page Content</h2>
 
-	<div class="upload-section">
-		<h3>Update Landing Images</h3>
-		<div class="file-upload">
-			<input
-				type="file"
-				accept="image/*"
-				id="landing-image"
-				multiple
-				onchange={handleImageUpload}
-			/>
-			<label for="landing-image" class="upload-button" style="width: {labelSize}px;}">
-				Choose Images
-			</label>
+	{#if uploadingData}
+		<div style="margin-top: 2rem;">
+			<ProgressBar uploadPromises={uploadPromises} bind:uploadFinished={uploadFinished} bind:failedUpload={failedUpload} />
 		</div>
 
-		<div class="img-display">
-			{#each uploadedImages as image, index}
-				<div class="uploaded-img">
-					<img src={image.url} alt="Uploaded Image ${index + 1}" />
-					<div class="img-utils">
-						<div class="img-info">
-							<p>{image.name}</p>
-							<p>{calculateNearestSize(image.size)}</p>
-							<p>{`${image.width} × ${image.height}`}</p>
-							<p>{image.aspectRatio}</p>
-						</div>
-						<div class="button-group">
-							<button class="platform-toggle"
-											style:background-color="{image.platform === desktop ? 'var(--secondary-color)' : 'var(--primary-color)'}"
-											onclick={() => setPlatform(desktop, index)}
-							>Desktop</button>
-							<button class="platform-toggle"
-											style:background-color="{image.platform === mobile ? 'var(--secondary-color)' : 'var(--primary-color)'}"
-											onclick={() => setPlatform(mobile, index)}
-							>Mobile</button>
+		<div class="upload-section">
+			<div class="input-section-with-cancel">
+				<button class="save-button" onclick={updateAgain} disabled={!uploadFinished}>Update Again</button>
+			</div>
+		</div>
+	{:else}
+		<div class="upload-section">
+			<h3>Update Landing Images</h3>
+			<div class="file-upload">
+				<input
+					type="file"
+					accept="image/*"
+					id="landing-image"
+					multiple
+					onchange={handleImageUpload}
+				/>
+				<label for="landing-image" class="upload-button" style="width: {labelSize}px;}">
+					Choose Images
+				</label>
+			</div>
+
+			<div class="img-display">
+				{#each uploadedImages as image, index}
+					<div class="uploaded-img">
+						<img src={image.url} alt="Uploaded Image ${index + 1}" />
+						<div class="img-utils">
+							<div class="img-info">
+								<p>{image.name}</p>
+								<p>{calculateNearestSize(image.size)}</p>
+								<p>{`${image.width} × ${image.height}`}</p>
+								<p>{image.aspectRatio}</p>
+							</div>
+							<div class="button-group">
+								<button class="platform-toggle"
+												style:background-color="{image.platform === desktop ? 'var(--secondary-color)' : 'var(--primary-color)'}"
+												onclick={() => setPlatform(desktop, index)}
+								>Desktop</button>
+								<button class="platform-toggle"
+												style:background-color="{image.platform === mobile ? 'var(--secondary-color)' : 'var(--primary-color)'}"
+												onclick={() => setPlatform(mobile, index)}
+								>Mobile</button>
+							</div>
 						</div>
 					</div>
-				</div>
-			{/each}
+				{/each}
+			</div>
 		</div>
 
-		{#if isUploading}
-			<div class="finish-upload"
-					 style:opacity={isUploading ? 'visible' : 'hidden'}
+		<hr/>
+
+		<div class="text-section">
+			<h3>Landing Page Text</h3>
+			<textarea
+				bind:value={landingText}
+				placeholder="Enter landing page text..."
+				rows="4"
+				disabled={landingText.length === 0}
+			></textarea>
+			<button
+				class="save-button"
+				onclick={pushData}
 			>
-				<button class="save-button"
-								onclick={pushImages}
-				>Upload To Website
-				</button>
-			</div>
-		{/if}
-	</div>
+				Update Website
+			</button>
+		</div>
+	{/if}
 
-	<hr/>
-
-	<div class="text-section">
-		<h3>Landing Page Text</h3>
-		<textarea
-			bind:value={landingText}
-			placeholder="Enter landing page text..."
-			rows="4"
-		></textarea>
-		<button
-			class="save-button"
-			onclick={handleTextUpdate}
-		>
-			Save Text
-		</button>
-	</div>
 </div>
