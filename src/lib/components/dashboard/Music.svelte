@@ -1,11 +1,11 @@
 <script lang="js">
 	import { onMount } from 'svelte';
-	import { initStorage, AddAlbum } from '$lib/firebase.js';
+	import { AddAlbum } from '$lib/firebase.js';
 	import ProgressBar from '$lib/components/layout/ProgressBar.svelte';
 
-	let { isUploading = $bindable(false), storage = false } = $props();
+	let { isUploading = $bindable(false) } = $props();
 
-	let labelSize = $state(0);
+	let labelSize = $state(40);
 	let uploadingSongs = $state(false);
 
 	let albumArt = $state();
@@ -99,13 +99,12 @@
 	}
 
 	onMount(() => {
-		if (!storage) {
-			initStorage();
-		}
-
 		const button = document.querySelector('.save-button');
-		labelSize = button.offsetWidth;
-	})
+		if (button.offsetWidth !== 0) {
+			labelSize = button.offsetWidth;
+		}
+	});
+
 </script>
 <style lang="css">
 

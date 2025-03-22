@@ -4,7 +4,7 @@
 	import { GetClosestAspectRatio } from '$lib/index.js';
 	import ProgressBar from '$lib/components/layout/ProgressBar.svelte';
 
-	let { isUploading = $bindable(false), storage = false } = $props();
+	let { isUploading = $bindable(false) } = $props();
 	let uploadedImages = $state([]);
 
 	let landingText = $state("");
@@ -162,12 +162,10 @@
 	}
 
 	onMount(() => {
-		if (!storage) {
-			initStorage();
-		}
-
 		const button = document.querySelector('.save-button');
-		labelSize = button.offsetWidth;
+		if (button.offsetWidth !== 0) {
+			labelSize = button.offsetWidth;
+		}
 
 		fetchLandingData();
 	});
@@ -323,6 +321,7 @@
 			align-items: start;
 
 			font-size: 1.25rem;
+			line-height: 1rem;
 			font-family: var(--font-standard);
 	}
 
@@ -357,7 +356,11 @@
 			cursor: pointer;
   }
 
-  .upload-section, .text-section {
+	.upload-section {
+			margin-bottom: 1rem;
+	}
+
+  .text-section {
       margin-bottom: 2rem;
   }
 
@@ -380,7 +383,7 @@
       color: var(--primary-color);
       font-family: var(--font-standard);
       resize: vertical;
-      margin-bottom: 1rem;
+      margin-bottom: 2rem;
   }
 
   textarea:focus {

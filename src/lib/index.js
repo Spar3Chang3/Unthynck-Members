@@ -52,4 +52,7 @@ export const IconLinks = {
 	playerShuffleOff: '/icons/player-shuffle-off.svg',
 	playlistAdd: '/icons/playlist-add.svg',
 	playlistRemove: '/icons/playlist-remove.svg',
+
+	eyeOn: '/icons/eye.svg',
+	eyeOff: '/icons/eye-off.svg',
 }

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import BandCard from '$lib/components/band/BandCard.svelte';
 	import ProgressBar from '$lib/components/layout/ProgressBar.svelte';
-	import { initDatabase, getDataFromDatabase, initStorage, updateMembers } from '$lib/firebase.js';
+	import { getDataFromDatabase, updateMembers } from '$lib/firebase.js';
 	import { IconLinks } from '$lib/index.js';
 
 	const memberDataPath = 'public/members';
@@ -28,7 +28,7 @@
 
 	let uploadPromises = $state();
 
-	let { isUploading = $bindable(false), storage = false, db = false, uid = "" } = $props();
+	let { isUploading = $bindable(false), uid = "" } = $props();
 
 	async function fetchMemberData() {
 		await getDataFromDatabase(memberDataPath).then((data) => {
@@ -51,7 +51,7 @@
 			}
 		}).catch((err) => {
 			alert(("Could not obtain members :( Please try refreshing or come back later - " + err));
-		})
+		});
 	}
 
 	function handlePortraitUpload(e) {
@@ -123,14 +123,6 @@
 	}
 
 	onMount(() => {
-		if (!storage) {
-			initStorage();
-		}
-
-		if (!db) {
-			initDatabase();
-		}
-
 		fetchMemberData();
 
 		const button = document.querySelector('.save-button');
@@ -147,8 +139,8 @@
         border: none;
     }
 
-    h3 {
-        font-size: 1.5rem;
+    h2 {
+        font-size: 2rem;
     }
 
     .meet-the-band {
@@ -286,13 +278,14 @@
 				justify-content: center;
 				align-items: center;
 
-				padding: 0rem 0.25rem 0.25rem 0.25rem;
+				padding: 0 0.25rem 0.25rem 0.25rem;
 
 				border: none;
 				font-size: 3rem;
 				line-height: 2.5rem;
 				background: none;
 				color: var(--text-standard);
+				cursor: pointer;
 
 				transition: 100ms ease;
 		}
@@ -375,17 +368,10 @@
         animation: rotate 1s infinite linear;
     }
 
-    @keyframes rotate {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
 </style>
 <div class="meet-the-band">
+	<h2>Update Band Card</h2>
+
 	{#if uploadingData}
 		<div style="margin-top: 2rem;">
 			<ProgressBar uploadPromises={uploadPromises} bind:uploadFinished={uploadFinished} bind:failedUpload={failedUpload} />
@@ -398,7 +384,6 @@
 		</div>
 	{:else}
 		<div class="upload-section">
-			<h3>Update Band Card</h3>
 			<div class="file-upload">
 				<div class="input-section-with-cancel">
 					<input
