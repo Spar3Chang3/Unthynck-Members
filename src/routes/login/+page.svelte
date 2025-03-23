@@ -10,6 +10,9 @@
 
     let isFormValid = $derived(email && password);
 
+    let showAttemptInfo = $state(false);
+    let attemptInfo = $state();
+
     async function handleSubmit() {
 
         const auth = getAuth();
@@ -23,7 +26,8 @@
               }
           })
           .catch((err) => {
-              alert(`It didn't work! Error code ${err.code} and message: ${err.message}`);
+              attemptInfo = err.code;
+              showAttemptInfo = true;
           });
     }
 
@@ -37,6 +41,10 @@
     <div class="login-box">
         <div class="header">
             <h2>Sign in to your account</h2>
+        </div>
+        <div class="attempt-info" style:visibility={showAttemptInfo ? 'visible' : 'hidden'}>
+            <p>Your Username or Password is likely incorrect</p>
+            <p>{attemptInfo}</p>
         </div>
         <form onsubmit={handleSubmit}>
             <div class="input-group">
@@ -114,10 +122,18 @@
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
+    .attempt-info {
+        text-align: center;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+
+        font-family: var(--font-standard);
+        color: red;
+    }
+
     .header {
         text-align: center;
         font-size: var(--banner-text-size);
-        margin-bottom: 2rem;
     }
 
     h2 {
