@@ -1,12 +1,14 @@
 <script lang="js">
 	import { onMount } from 'svelte';
-	import { AddAlbum } from '$lib/firebase.js';
+	import { AddAlbum, getJsonIndexDownloads, updateSongDescriptions } from '$lib/firebase.js';
 	import ProgressBar from '$lib/components/layout/ProgressBar.svelte';
+	import { IconLinks } from '$lib/index.js';
 
 	let { isUploading = $bindable(false) } = $props();
 
 	let labelSize = $state(40);
 	let uploadingSongs = $state(false);
+	let uploadingIndexes = $state(false);
 
 	let albumArt = $state();
 	let albumArtFile = $state();
@@ -16,10 +18,16 @@
 
 	let songFiles = $state([]);
 	let songIndex = $state([]);
+	let indexFiles = $state([]);
+	let dropdowns = $state([]);
 
-	let uploadPromises = $state();
+	let songUploadPromises = $state();
+	let indexUploadPromises = $state();
 	let uploadFailed = $state(false);
 	let uploadFinished = $state(false);
+
+	let indexRetrieved = $state(false);
+
 
 	function handleArtUpload(e) {
 		e.preventDefault();
@@ -85,6 +93,31 @@
 		}
 	}
 
+	async function getJsons() {
+		try {
+			const returnArr = await getJsonIndexDownloads('releases');
+
+			const jsonPromises = returnArr.map(async (file) => {
+				const response = await fetch(file);
+				return response.json();
+			});
+
+			indexFiles = Object.values(await Promise.all(jsonPromises));
+		} catch (error) {
+			console.error('Error fetching JSONs:', error);
+			indexFiles = [];
+		}
+	}
+
+	function updateIndexes(e) {
+		e.preventDefault();
+
+		updateSongDescriptions(indexFiles).then((res) => {
+			indexUploadPromises = res;
+			uploadingIndexes = true;
+		});
+	}
+
 	function pushSongs(e) {
 		e.preventDefault();
 
@@ -93,9 +126,18 @@
 		}
 
 		AddAlbum(albumName, albumArtFile, songFiles, songIndex).then((res) => {
-			uploadPromises = res;
+			songUploadPromises = res;
 			uploadingSongs = true;
 		});
+	}
+
+	function getAlbumName(jsonObj) {
+		const split = jsonObj[0].artworkPath.split('/');
+		return split[1];
+	}
+
+	function toggleDropdown(index) {
+		dropdowns[index] = !dropdowns[index];
 	}
 
 	onMount(() => {
@@ -103,6 +145,24 @@
 		if (button.offsetWidth !== 0) {
 			labelSize = button.offsetWidth;
 		}
+
+
+		getJsons().then(() => {
+			if (indexFiles.length <= 1) {
+				const err = document.createElement('h3');
+				err.textContent = 'Error fetching files, please check your console';
+				err.style.color = 'lighcoral';
+
+				const info = document.getElementById('index-retrieve-info');
+				info.innerHTML = "";
+				info.appendChild(err);
+			}
+
+			for (let i = 0;i < indexFiles.length; i++) {
+				dropdowns.push(false);
+			}
+			indexRetrieved = true;
+		});
 	});
 
 </script>
@@ -138,7 +198,7 @@
         color: whitesmoke;
     }
 
-    .upload-section {
+    .upload-section, .edit-song-info-section {
         position: relative;
         display: flex;
         flex-direction: column;
@@ -147,6 +207,7 @@
         width: 95%;
 
         gap: 1rem;
+				overflow: hidden;
     }
 
     .upload-section, .finish-upload {
@@ -367,6 +428,74 @@
         transition: 100ms ease;
     }
 
+		.dropdown {
+				position: relative;
+
+				height: 6dvh;
+				width: 100%;
+
+				margin: 0;
+				padding: 0;
+
+				transition: all 400ms ease;
+				overflow: hidden;
+		}
+
+		.dropdown .album-index {
+				height: 0;
+				visibility: hidden;
+		}
+
+		.dropdown svg {
+				position: absolute;
+				bottom: 12%;
+				left: 90%;
+				transition: 400ms ease;
+				transform: rotate(0);
+		}
+
+		.open {
+				height: fit-content;
+				padding-top: 6dvh;
+		}
+
+		.open .album-index {
+				height: fit-content;
+				visibility: visible;
+		}
+
+		.open svg {
+				transform: rotate(180deg);
+		}
+
+		.open-button {
+				position: absolute;
+
+				height: 6dvh;
+				width: 100%;
+
+				top: 0;
+
+				border: none;
+				background-color: var(--banner-accent);
+
+				color: whitesmoke;
+				font-size: 1.5rem;
+
+				cursor: pointer;
+		}
+
+		.loading-model {
+				width: 100%;
+				text-align: center;
+		}
+
+		.loading-model img {
+				width: 20%;
+				justify-self: center;
+				animation: rotate 3s infinite linear;
+		}
+
     @keyframes rotate {
         from {
             transform: rotate(0deg);
@@ -417,7 +546,7 @@
 	</div>
 
 	{#if uploadingSongs}
-		<ProgressBar uploadPromises={uploadPromises} bind:uploadFailed={uploadFailed} bind:uploadFinished={uploadFinished} />
+		<ProgressBar uploadPromises={songUploadPromises} bind:uploadFailed={uploadFailed} bind:uploadFinished={uploadFinished} />
 	{:else}
 		<div class="song-index-display">
 			{#if albumArtUploaded}
@@ -462,7 +591,41 @@
         border: none;"/>
 
 	<div class="edit-song-info-section">
+		<h3>Edit Song Descriptions</h3>
 
+		{#if indexRetrieved}
+			{#if uploadingIndexes}
+				<ProgressBar bind:uploadPromises={indexUploadPromises} bind:uploadFinished={uploadFinished} bind:uploadFailed={uploadFailed} />
+			{:else}
+				{#each indexFiles as json, key}
+					<div class="dropdown" class:open={dropdowns[key]}>
+						<button class="open-button" onclick={() => toggleDropdown(key)} aria-label="ghost button" title="{dropdowns[key] ? 'close' : 'open'}">
+							{getAlbumName(json)}
+							<svg width="64" height="64" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="white" stroke="white" stroke-width="1.5" stroke-linejoin="round">
+								<!-- Gently imperfect down arrow triangle -->
+								<path d="M5.5 8 L12 17 L18.2 8.8 Z" />
+							</svg>
+						</button>
+						<div class="album-index">
+							<pre style="background-color: #111111; padding: 0.25rem; max-height: 10dvh; overflow: scroll;">{JSON.stringify(json, null, 2)}</pre>
+							<div class="song-desc-container">
+								{#each json as song, songKey}
+									<p>Description for {song.trackName}:</p>
+									<textarea bind:value={indexFiles[key][songKey].trackDescription} placeholder="Enter track description..."></textarea>
+								{/each}
+							</div>
+						</div>
+					</div>
+				{/each}
+				<div class="finish-upload" style="margin-top: 1rem;">
+					<button class="save-button" onclick={updateIndexes}>Update Songs</button>
+				</div>
+			{/if}
+		{:else}
+			<div class="loading-model" id="index-retrieve-info">
+				<img src={IconLinks.loader} alt="Loading Icon" />
+			</div>
+		{/if}
 	</div>
 
 </div>

@@ -32,6 +32,29 @@ export function GetClosestAspectRatio(width, height) {
 	return closestRatio;
 }
 
+export function FormatToLocalTime(utcTimeStr, offsetMinutes) {
+	// Parse the incoming time string (HH:mm:ss)
+	const [utcHours, utcMinutes, utcSeconds] = utcTimeStr.split(':').map(Number);
+
+	// Create a UTC date object using those values
+	const utcDate = new Date(Date.UTC(1970, 0, 1, utcHours, utcMinutes, utcSeconds));
+
+	// Apply the original timezone offset (in minutes) to revert to the real UTC timestamp
+	utcDate.setMinutes(utcDate.getMinutes() + parseInt(offsetMinutes));
+
+	// Now get the adjusted date in the user's local time zone
+	const localTime = new Date(utcDate);
+
+	// Format it to a readable string
+	const timeString = localTime.toLocaleTimeString([], {
+		hour: 'numeric',
+		minute: '2-digit',
+		hour12: true,
+	});
+
+	return timeString;
+}
+
 export const IconLinks = {
 	facebook: '/icons/facebook.svg',
 	instagram: '/icons/instagram.svg',

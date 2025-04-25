@@ -14,7 +14,7 @@
       ".write": false
     },
     "contact": {
-      ".read": false,
+      ".read": "auth != null && root.child('private/members').child(auth.uid).exists()",
       ".write": true
     }
   }

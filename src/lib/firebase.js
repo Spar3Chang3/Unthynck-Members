@@ -30,8 +30,6 @@ let firebaseApp;
 let firebaseStorage;
 let firebaseDatabase;
 
-let auth;
-
 export function initApp() {
 	return (firebaseApp = initializeApp(firebaseConfig));
 }
@@ -295,34 +293,25 @@ export async function AddAlbum(albumName, art, songFiles, index) {
 	}
 }
 
-export async function pushToContact(contactObj) {
-	const db = getFirebaseDatabase();
-	const contactRef = dbRef(db, 'contact');
+export async function updateSongDescriptions(newSongIndexes) {
+	const storage = getFirebaseStorage();
 
 	try {
-		const pushedData = await push(contactRef, contactObj);
-		if (pushedData.key !== null && pushedData.key !== undefined) {
-			return {
-				success: true,
-				statusCode: 200,
-				message: 'Contact pushed successfully',
-				data: pushedData
-			};
-		} else {
-			return {
-				success: true,
-				statusCode: undefined,
-				message: 'Contact encountered an unexpected non-error',
-				data: pushedData
-			};
-		}
+		const indexUploadPromises = newSongIndexes.map((index) => {
+			const indexString = JSON.stringify(index, null, 2);
+			const indexBlob = new Blob([indexString], { type: 'application/json' });
+
+			const artworkPath = index[0].trackPath.split('/'); //This is super temporary, it's not a great way to determine the album name
+			const indexRef = storeRef(storage, `${artworkPath[0]}/${artworkPath[1]}/index.json`);
+			const uploadPromise = uploadBytes(indexRef, indexBlob);
+
+			return { name: `${artworkPath[1]} index`, promise: uploadPromise };
+		});
+
+		return [...indexUploadPromises];
 	} catch (err) {
-		console.error('Could not push contact ref: ', err);
-		return {
-			success: false,
-			statusCode: 500,
-			message: 'Failed to push contact',
-			error: err.message
-		};
+		console.error('Could not update song descriptions: ', err);
+		return [{ success: false, statusCode: 500, message: err.message }];
 	}
+
 }

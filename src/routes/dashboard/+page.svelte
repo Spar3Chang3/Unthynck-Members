@@ -7,11 +7,13 @@
     import LandingPage from '$lib/components/dashboard/LandingPage.svelte';
     import Music from '$lib/components/dashboard/Music.svelte';
     import MeetTheBand from '$lib/components/dashboard/MeetTheBand.svelte';
+    import Contacts from '$lib/components/dashboard/Contacts.svelte';
     import Settings from '$lib/components/dashboard/Settings.svelte';
 
     const landing = 'landing';
     const music = 'music';
     const band = 'band';
+    const contacts = 'contacts';
     const settings = 'settings';
 
     let activeTab = $state('landing');
@@ -40,6 +42,8 @@
         initApp();
         initStorage();
         initDatabase();
+
+        document.title = "Dashboard - Unthynck Members";
 
         const auth = getAuth();
 
@@ -95,6 +99,13 @@
                 Meet the Band &#128248;
             </button>
             <button
+                class="tab-button"
+                class:active={activeTab === 'contacts'}
+                onclick={() => changeTab(contacts)}
+            >
+                Contacts &#128483;
+            </button>
+            <button
               class="tab-button"
               class:active={activeTab === 'settings'}
               onclick={() => changeTab(settings)}
@@ -115,12 +126,27 @@
             <MeetTheBand uid={userUid} bind:isUploading={isUploading[2]} />
         </div>
 
+        <div class="content-area" style:display={activeTab === contacts ? '' : 'none'}>
+            <Contacts />
+        </div>
+
         <div class="content-area" style:display={activeTab === settings ? '' : 'none'}>
             <Settings />
         </div>
     </div>
 
-    <button class="jump" onclick={jumpToTop}>&uarr;</button>
+    <button class="jump" onclick={jumpToTop}>
+        <svg width="32" height="32" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Sloppy left pointer -->
+            <path d="M12 3 L6.8 9.5" />
+
+            <!-- Sloppy right pointer -->
+            <path d="M12 3 L17.2 9.3" />
+
+            <!-- Janky stick body with a gentle wiggle -->
+            <path d="M12 9 C11.7 12, 12.3 14, 12 18" />
+        </svg>
+    </button>
 </section>
 
 <style>
@@ -206,15 +232,14 @@
         bottom: 2.5%;
         right: 2.5%;
 
-        height: 3rem;
-        width: 3rem;
-
         text-align: center;
-        aspect-ratio: 1 / 1;
+        padding: 0.75rem 0.75rem 0.65rem 0.75rem;
+        aspect-ratio: 1/1;
+        height: fit-content;
+        width: fit-content;
 
         background-color: var(--secondary-color);
         color: var(--text-standard);
-        font-size: 1.5rem;
         border: none;
         box-shadow: 0 0 0 2px rgba(122, 42, 191, 0.2);
 
