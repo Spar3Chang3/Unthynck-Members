@@ -30,6 +30,11 @@
         font-size: 2rem;
     }
 
+		a {
+				text-decoration: underline;
+				color: #039be5;
+		}
+
     .contacts {
         position: relative;
         display: flex;

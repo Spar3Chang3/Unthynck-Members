@@ -483,6 +483,7 @@
 				font-size: 1.5rem;
 
 				cursor: pointer;
+				font-family: var(--font-standard);
 		}
 
 		.loading-model {
